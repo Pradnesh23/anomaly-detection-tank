@@ -29,6 +29,46 @@ graph TD
 - **Tier 2 (Edge Server):** Raspberry Pi running Flask with full 5-method ensemble
 - **Tier 3 (Visualization):** Real-time web dashboard with charts, alerts, and operator feedback
 
+## 🔄 User Flow & Data Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant S as HC-SR04 Sensor
+    participant E as ESP32
+    participant F as Flask (RPi)
+    participant D as SQLite DB
+    participant U as Dashboard (Browser)
+    participant A as Alert System
+    
+    loop Every ~20 seconds
+        S->>E: Ultrasonic pulse (distance)
+        E->>F: POST /sensor {"distance_mm": 42.5}
+        F->>F: Run MA+SD, RoC, CUSUM
+        F->>F: Compute confidence score
+        F->>D: INSERT INTO readings
+        
+        alt Score >= 0.4 (Alert/Critical)
+            F->>D: INSERT INTO alerts
+            F->>A: Trigger notification
+            A-->>U: SMS / Email alert
+        end
+        
+        F-->>E: JSON result (for local display)
+    end
+    
+    loop Every 5 seconds
+        U->>F: GET /status
+        F->>D: SELECT latest reading
+        D-->>F: Row data
+        F-->>U: JSON (level, score, tier)
+        U->>U: Update cards + charts
+    end
+    
+    Note over U,D: Human-in-the-Loop Feedback
+    U->>F: Operator clicks [CONFIRM] or [FALSE ALARM]
+    F->>D: Update label for future training
+```
+
 ## 📊 Detection Methods
 
 | Method | Type | F1 Score | Inference | Edge Deployable |
