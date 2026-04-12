@@ -1,0 +1,35 @@
+{
+  "masd": {
+    "window": 100,
+    "n_std": 2.5,
+    "note": "Applied to detrended signal -- removes linear drain trend first"
+  },
+  "roc": {
+    "drop_threshold": -1.0,
+    "rise_threshold": 1.0
+  },
+  "cusum": {
+    "alpha": 0.15,
+    "k": 0.5,
+    "h": 10.0,
+    "note": "alpha=0.15 tracks drain trend; h=10 avoids noise triggers"
+  },
+  "confidence_tiers": {
+    "log": [
+      0.0,
+      0.24
+    ],
+    "dashboard": [
+      0.25,
+      0.59
+    ],
+    "alert": [
+      0.6,
+      0.89
+    ],
+    "critical": [
+      0.9,
+      1.0
+    ]
+  }
+}

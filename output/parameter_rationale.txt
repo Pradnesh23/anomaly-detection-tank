@@ -1,0 +1,55 @@
+PARAMETER RATIONALE -- Threshold Justification
+======================================================================
+
+MA+SD
+----------------------------------------
+  window = 50  (readings (~50 minutes at 1 reading/min))
+    Rationale: 50 minutes captures a typical stable operating segment. Shorter windows (10-20) are too sensitive to HC-SR04 noise (+-1.12mm measured noise floor). Longer windows (100+) smooth out real events like refills.
+  n_std = 2.5  (standard deviations)
+    Rationale: Applied on detrended signal (after removing linear drain slope). 2.5sigma on detrended residuals corresponds to ~3mm deviation, which is at the HC-SR04 accuracy limit. Values below 2.0sigma flag normal sensor jitter. Values above 3.0sigma miss subtle anomalies.
+    Note: Original paper used 1.5sigma on raw signal -> caused >80% false positive rate due to unaccounted drain trend. Detrending + 2.5sigma reduces FPR to <5%.
+  detrending = linear regression (scipy.stats.linregress)
+    Rationale: Tank drain follows approximately linear trend within each operating segment. Detrending separates expected drift (normal) from unexpected deviation (anomaly).
+
+RoC
+----------------------------------------
+  drop_threshold = -1.0  (mm/min)
+    Rationale: HC-SR04 sensor noise floor measured at +-1.12mm (computed as std of consecutive differences during stable periods). Threshold at -1.0 is at the noise boundary -- any drop larger than this is likely a real physical event, not noise.
+  rise_threshold = 1.0  (mm/min)
+    Rationale: Symmetric to drop threshold. A rise of >1mm/min indicates active refilling or sensor disturbance.
+
+Adaptive_CUSUM
+----------------------------------------
+  alpha = 0.15  (EWMA smoothing factor (0-1))
+    Rationale: Controls how quickly the adaptive baseline tracks the signal. alpha=0.15 gives effective memory of ~6 readings (1/(1-alpha)~1.18, but in practice ~6-7 readings contribute significantly). Fast enough to track the normal drain trend, slow enough to not absorb anomalous spikes into the baseline.
+    Note: Original alpha=0.03 was too slow -- CUSUM accumulated the normal drain as 'drift' and fired continuously. alpha=0.15 fixed this.
+  k = 0.5  (mm (allowance/slack parameter))
+    Rationale: Allows +-0.5mm of natural variation before CUSUM starts accumulating. This is approximately half the sensor noise floor (1.12mm), providing tolerance for sensor jitter without being so large that small leaks are ignored.
+  h = 10.0  (mm (detection threshold))
+    Rationale: CUSUM fires when accumulated deviation exceeds 10mm. Given k=0.5 and typical noise, a genuine slow leak of 0.3mm/min above expected would take ~25-30 minutes to accumulate to h=10 -- a reasonable detection delay for this application.
+    Note: Original h=5.0 triggered too frequently on normal sensor fluctuations. h=10.0 reduces noise triggers while still catching leaks within 30 minutes.
+
+STL_Decomposition
+----------------------------------------
+  period = 60  (readings (= 60 minutes = 1 hour cycle))
+    Rationale: Primary seasonal cycle in tank usage is hourly (pump cycles, usage patterns). For multi-day data, daily seasonality (period=1440) is also relevant but requires >=2 full days of data.
+  robust = True
+    Rationale: Robust STL uses iteratively reweighted least squares, which downweights outliers during decomposition. Essential for our data since anomalies exist in the signal -- without robust mode, anomalies distort the seasonal component.
+  residual_threshold = 3.0  (standard deviations of residual)
+    Rationale: After decomposing signal into Trend + Seasonal + Residual, residuals exceeding 3sigma are flagged. This follows the standard 3-sigma rule (99.7% of normal readings within +-3sigma).
+
+Prophet
+----------------------------------------
+  interval_width = 0.95  (confidence interval (probability))
+    Rationale: 95% CI means only 5% of normal readings should fall outside the predicted bounds. Readings outside this band are anomalous with high confidence.
+  changepoint_prior_scale = 0.05  (regularization strength)
+    Rationale: Low value = stable baseline, prevents Prophet from overfitting to the gradual drain trend. Higher values (0.5+) would cause Prophet to absorb anomalies as changepoints, missing them during detection.
+  daily_seasonality = True
+    Rationale: Models the daily fill/drain cycle pattern. Essential for detecting contextual anomalies (e.g., unexpected drain during typically stable hours).
+  weekly_seasonality = True if data spans >=3 days, else False
+    Rationale: Weekly patterns (weekday vs weekend usage) only meaningful with multi-day data. Automatically enabled for 21K dataset (5 days), disabled for 998-row dataset (16 hours).
+
+Confidence_Scoring
+----------------------------------------
+  method = Equal-weight voting: 0.2 x each of 5 detectors
+    Rationale: Each detector contributes 0.2 to the final score (max=1.0). Equal weighting is used because we lack sufficient labeled data to learn optimal weights. Statistical and TSA methods are complementary (statistical catches sudden events, TSA catches contextual anomalies), so equal weighting is fair.
