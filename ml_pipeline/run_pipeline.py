@@ -6,9 +6,9 @@ Run this from the tank_monitor/ directory:
     python run_all.py
 
 Or run individual steps:
-    python 00_anomaly_definitions.py
-    python 01_preprocessing.py
-    python 02_statistical_detectors.py
+    python ml_pipeline/00_anomaly_definitions.py
+    python ml_pipeline/01_preprocessing.py
+    python ml_pipeline/02_statistical_detectors.py
     ...
 
 Pipeline:
@@ -23,16 +23,16 @@ Pipeline:
 """
 import subprocess, sys, os, time
 
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 STEPS = [
-    ("00_anomaly_definitions.py",   "Formal anomaly taxonomy, threshold justification"),
-    ("01_preprocessing.py",         "Data loading, cleaning, gap filling, feature engineering"),
-    ("02_statistical_detectors.py", "MA+SD, RoC, Adaptive CUSUM, confidence scoring"),
-    ("03_ml_detectors.py",          "STL Decomposition + Prophet (Time Series Analysis)"),
-    ("05_evaluation.py",            "Metrics, plots, SOTA comparison, deployment benchmarks"),
-    ("07_datasets_and_synthetic.py","External dataset guide + synthetic data generation"),
-    ("08_tinyml_export.py",         "TinyML C headers for ESP32 + deployment analysis"),
+    ("ml_pipeline/00_anomaly_definitions.py",   "Formal anomaly taxonomy, threshold justification"),
+    ("ml_pipeline/01_preprocessing.py",         "Data loading, cleaning, gap filling, feature engineering"),
+    ("ml_pipeline/02_statistical_detectors.py", "MA+SD, RoC, Adaptive CUSUM, confidence scoring"),
+    ("ml_pipeline/03_ml_detectors.py",          "STL Decomposition + Prophet (Time Series Analysis)"),
+    ("ml_pipeline/05_evaluation.py",            "Metrics, plots, SOTA comparison, deployment benchmarks"),
+    ("ml_pipeline/07_datasets_and_synthetic.py","External dataset guide + synthetic data generation"),
+    ("ml_pipeline/08_tinyml_export.py",         "TinyML C headers for ESP32 + deployment analysis"),
 ]
 
 print("=" * 65)
