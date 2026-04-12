@@ -520,9 +520,7 @@ ax.bar(x + 1.5*w, mccs,  w, label='MCC',       color='#7c3aed', alpha=0.85)
 ax.set_xticks(x)
 ax.set_xticklabels([n.replace(' ', '\n') for n in names], fontsize=8)
 ax.set_ylabel('Score (0-1)')
-ax.set_title('Detection Performance: Precision / F1 / Recall / MCC\n'
-             '(Ensemble consensus pseudo ground truth)', fontweight='bold')
-ax.set_ylim(0, 1.15); ax.legend(fontsize=9); ax.grid(True, alpha=0.3, axis='y')
+ax.set_ylim(0, 1.15); ax.legend(fontsize=9, loc='lower right'); ax.grid(True, alpha=0.3, axis='y')
 plt.tight_layout()
 plt.savefig('output/plots/08_f1_comparison.png', dpi=150, bbox_inches='tight')
 plt.close()
@@ -531,7 +529,7 @@ print("  [OK] output/plots/08_f1_comparison.png")
 # -- Plot 7: Confusion Matrices ----------------------------
 n_detectors = len(results)
 fig, axes = plt.subplots(2, 3, figsize=(15, 9))
-fig.suptitle('Confusion Matrices -- All Detectors', fontsize=14, fontweight='bold')
+# fig.suptitle removed for IEEE compatibility
 
 for idx, (name, m) in enumerate(results.items()):
     ax = axes[idx // 3][idx % 3]
@@ -590,8 +588,6 @@ try:
     ax.set_xticklabels(categories, fontsize=10)
     ax.set_ylim(0, 1.1)
     ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.1), fontsize=9)
-    ax.set_title('Our Ensemble vs SOTA\n(* = literature values)', fontweight='bold',
-                 fontsize=12, pad=20)
     plt.tight_layout()
     plt.savefig('output/plots/10_sota_radar.png', dpi=150, bbox_inches='tight')
     plt.close()
