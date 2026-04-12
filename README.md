@@ -29,6 +29,68 @@ graph TD
 - **Tier 2 (Edge Server):** Raspberry Pi running Flask with full 5-method ensemble
 - **Tier 3 (Visualization):** Real-time web dashboard with charts, alerts, and operator feedback
 
+## 🔍 In-Depth System Architecture
+
+```mermaid
+graph LR
+    %% Hardware Tier
+    subgraph ESP32["ESP32 Microcontroller (C/C++)"]
+        direction TB
+        HC["HC-SR04 Pulse (GPIO)"] --> TinyML["TinyML Inference Engine"]
+        TinyML --> MA["MA+SD (15μs)"]
+        TinyML --> ROC["Rate of Change (5μs)"]
+        TinyML --> CUSUM["Adaptive CUSUM (10μs)"]
+        CUSUM --> WiFi["WiFi / HTTPClient"]
+    end
+
+    %% Python Backend Tier
+    subgraph Server["Edge Server (Python/Flask)"]
+        direction TB
+        Route["POST /sensor"] --> Buffer["Rolling Window Buffer"]
+        
+        %% Ensemble Engine
+        subgraph Ensemble["5-Method Ensemble Engine"]
+            Buffer --> StatEngine["Statistical Evaluator"]
+            Buffer --> TSAEngine["Time-Series Evaluator"]
+            TSAEngine -.-> STL["STL Decomposition"]
+            TSAEngine -.-> PROPHET["Prophet Forecasting"]
+            StatEngine --> Voting["Confidence & Voting Layer"]
+            TSAEngine --> Voting
+        end
+        
+        Voting --> Flow["Flow/Usage Calculator"]
+        
+        %% Database
+        subgraph DB["SQLite Database"]
+            Readings[("readings (7.4k rows)")]
+            Alerts[("alerts table")]
+        end
+        
+        Flow --> DB
+    end
+
+    %% Client Tier
+    subgraph Client["Web Dashboard (HTML/JS)"]
+        direction TB
+        Fetch["Polling (GET /status)"] --> DOM["DOM Elements"]
+        DOM --> Charts["Chart.js Renderers"]
+        DOM --> Log["Anomaly Data Table"]
+        Log --> Operator["Operator Feedback ([OK] / [X])"]
+    end
+
+    %% Alerting out of band
+    subgraph Notifications["External Services"]
+        Twilio["Twilio SMS API"]
+        Email["SMTP Email Server"]
+    end
+
+    %% Connections
+    WiFi == "JSON Payload" ==> Route
+    Voting -- "Score >= 0.7" --> Twilio
+    Fetch == "JSON State" ==> DB
+    Operator -- "POST /feedback" --> DB
+```
+
 ## 🔄 User Flow & Data Lifecycle
 
 ```mermaid
