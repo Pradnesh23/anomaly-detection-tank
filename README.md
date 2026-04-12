@@ -22,16 +22,6 @@ graph TD
     subgraph "Tier 3: UI"
         E --> G["💻 Real-Time Web Dashboard"]
     end
-
-    classDef hardware fill:#e0f2fe,stroke:#0284c7;
-    classDef server fill:#dcfce7,stroke:#16a34a;
-    classDef db fill:#fef3c7,stroke:#d97706;
-    classDef ui fill:#fce7f3,stroke:#db2777;
-
-    class A,B hardware;
-    class C,D,F server;
-    class E db;
-    class G ui;
 ```
 
 **Three-Tier System:**
