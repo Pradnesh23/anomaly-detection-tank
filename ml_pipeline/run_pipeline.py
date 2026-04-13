@@ -17,8 +17,10 @@ Pipeline:
   Step 2: Statistical detectors (MA+SD, RoC, Adaptive CUSUM)
   Step 3: Time Series Analysis (STL Decomposition + Prophet)
   Step 4: Evaluation (metrics, plots, SOTA comparison)
-  Step 5: Synthetic data generation
-  Step 6: TinyML export (C headers for ESP32)
+  Step 5: TinyML export (C headers for ESP32)
+
+Optional (run manually):
+  python ml_pipeline/07_datasets_and_synthetic.py
 =============================================================================
 """
 import subprocess, sys, os, time
@@ -31,7 +33,6 @@ STEPS = [
     ("ml_pipeline/02_statistical_detectors.py", "MA+SD, RoC, Adaptive CUSUM, confidence scoring"),
     ("ml_pipeline/03_ml_detectors.py",          "STL Decomposition + Prophet (Time Series Analysis)"),
     ("ml_pipeline/05_evaluation.py",            "Metrics, plots, SOTA comparison, deployment benchmarks"),
-    ("ml_pipeline/07_datasets_and_synthetic.py","External dataset guide + synthetic data generation"),
     ("ml_pipeline/08_tinyml_export.py",         "TinyML C headers for ESP32 + deployment analysis"),
 ]
 
@@ -92,7 +93,7 @@ print(f"\nOutputs:")
 print(f"  data/processed.csv             -- cleaned, feature-engineered dataset")
 print(f"  data/statistical_results.csv   -- MA+SD, RoC, CUSUM flags + scores")
 print(f"  data/tsa_results.csv           -- STL + Prophet flags + final 5-method scores")
-print(f"  data/synthetic_labeled.csv     -- labeled synthetic anomaly data")
+# data/synthetic_labeled.csv is generated only when 07_datasets_and_synthetic.py is run manually
 print(f"  models/stat_thresholds.json    -- calibrated thresholds")
 print(f"  models/tinyml_detectors.h      -- C code for ESP32 (TinyML)")
 print(f"  models/prophet_seasonal.h      -- Prophet seasonality for ESP32")
