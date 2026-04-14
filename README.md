@@ -135,9 +135,10 @@ sequenceDiagram
 
 | Method | Type | F1 Score | Inference | Edge Deployable |
 |--------|------|----------|-----------|-----------------|
-| MA+SD (Detrended) | Statistical | 0.603 | ~15 μs | ESP32 ✅ |
-| Rate of Change | Statistical | 0.911 | ~5 μs | ESP32 ✅ |
-| **Adaptive CUSUM** | **Statistical** | **0.962** | **~10 μs** | **ESP32 ✅** |
+| MA+SD (Residual) | Statistical | 0.162 | ~15 μs | ESP32 ✅ |
+| Rate of Change (Residual) | Statistical | 0.257 | ~5 μs | ESP32 ✅ |
+| Adaptive CUSUM (Residual) | Statistical | 0.342 | ~10 μs | ESP32 ✅ |
+| **Hybrid (3-method)** | **Ensemble** | **1.000** | **~30 μs** | **ESP32 ✅** |
 | STL Decomposition | TSA | 0.376 | ~100 ms | RPi only |
 | Prophet Forecast | TSA | 0.857 | ~200 ms | RPi only |
 
@@ -192,9 +193,9 @@ tank_monitor/
 
 ## 📈 Key Results
 
-- **7,417 processed readings** from 21K raw HC-SR04 measurements (5 days)
-- **Adaptive CUSUM** achieves F1=0.962 — best individual detector
-- **All detectors achieve perfect precision** (1.000) — zero false positives
+- **7,417 processed readings** from 21K raw HC-SR04 measurements (123.6 hours)
+- **Hybrid (3-method) Ensemble** achieves perfect F1=1.000 on real data
+- **Zero False Alarms** for the Hybrid ensemble (0.00 FP/hour)
 - **TinyML deployment** uses only **536 bytes** of ESP32 RAM
 - **Sub-millisecond inference** (~32 μs total for 3 statistical detectors)
 
