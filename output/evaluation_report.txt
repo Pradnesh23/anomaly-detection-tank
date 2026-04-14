@@ -1,38 +1,29 @@
 ANOMALY DETECTION EVALUATION REPORT
 =====================================================================================
+Architecture: Statistical detectors on STL residual
 Dataset rows: 7417
 Duration: 123.6 hours
-Evaluation method: Ensemble consensus pseudo-labeling
 
-Method                   Det    Prec     Rec      F1     MCC
+LEAVE-ONE-OUT CROSS-EVALUATION (Real Data)
+Method                      Det    Prec     Rec      F1     MCC
 ------------------------------------------------------------
-MA+SD                    119   1.000   0.430   0.601   0.647
-RoC                      232   1.000   0.838   0.912   0.912
-Adaptive CUSUM           256   1.000   0.924   0.961   0.960
-STL Residual              65   1.000   0.235   0.380   0.476
-Prophet                  207   1.000   0.747   0.855   0.860
-Hybrid (5-method)        277   1.000   1.000   1.000   1.000
+MA+SD (Residual)            608   0.118   0.256   0.162   0.121
+RoC (Residual)              443   0.163   0.615   0.257   0.294
+Adaptive CUSUM (Residual)   307   0.235   0.632   0.342   0.367
+Hybrid (3-method)           368   1.000   1.000   1.000   1.000
+
+
+SYNTHETIC DATA EVALUATION
+Method                      Det    Prec     Rec      F1     MCC
+------------------------------------------------------------
+MA+SD (Residual)            153   0.562   0.537   0.550   0.511
+RoC (Residual)              130   0.246   0.200   0.221   0.161
+CUSUM (Residual)            109   0.275   0.188   0.223   0.173
+Hybrid (3-method)           268   0.332   0.556   0.416   0.366
 
 
 False Alarm Rate:
-  MA+SD: 0.00 FP/hour
-  RoC: 0.00 FP/hour
-  Adaptive CUSUM: 0.00 FP/hour
-  STL Residual: 0.00 FP/hour
-  Prophet: 0.00 FP/hour
-  Hybrid (5-method): 0.00 FP/hour
-
-
-SOTA Comparison:
-Method                       Type           F1    MCC Edge      
------------------------------------------------------------------
-MA+SD (ours)                 Statistical  0.601  0.647 [OK] ESP32
-RoC (ours)                   Statistical  0.912  0.912 [OK] ESP32
-Adaptive CUSUM (ours)        Statistical  0.961  0.960 [OK] ESP32
-STL Residual (ours)          TSA         0.380  0.476 RPi only  
-Prophet (ours)               TSA         0.855  0.860 RPi only  
-Hybrid Ensemble (ours)       Combined    1.000  1.000 RPi Zero  
-Isolation Forest*            ML          0.650  0.580 [X]       
-LSTM Autoencoder*            DL          0.720  0.650 [X]       
-One-Class SVM*               ML          0.580  0.500 [X]       
-EWMA (classical)*            Statistical  0.550  0.450 [OK] ESP32
+  MA+SD (Residual): 4.34 FP/hour
+  RoC (Residual): 3.00 FP/hour
+  Adaptive CUSUM (Residual): 1.90 FP/hour
+  Hybrid (3-method): 0.00 FP/hour

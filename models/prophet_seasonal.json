@@ -27,7 +27,8 @@
   ],
   "trend_slope": 0.0003592619601426563,
   "trend_intercept": 58.53977898533333,
-  "ci_width_mean": 101.45440400406252,
+  "ci_width_mean": 101.36108069169691,
   "training_rows": 7417,
-  "weekly_seasonality_enabled": true
+  "weekly_seasonality_enabled": true,
+  "note": "Prophet provides signal understanding, not anomaly detection flags"
 }

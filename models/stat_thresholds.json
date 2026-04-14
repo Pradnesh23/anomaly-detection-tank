@@ -2,17 +2,22 @@
   "masd": {
     "window": 100,
     "n_std": 2.5,
-    "note": "Applied to detrended signal -- removes linear drain trend first"
+    "note": "Applied to STL residual -- seasonal patterns removed first"
   },
   "roc": {
     "drop_threshold": -1.0,
-    "rise_threshold": 1.0
+    "rise_threshold": 1.0,
+    "note": "Applied to STL residual differences"
   },
   "cusum": {
     "alpha": 0.15,
     "k": 0.5,
     "h": 10.0,
-    "note": "alpha=0.15 tracks drain trend; h=10 avoids noise triggers"
+    "note": "Applied to STL residual -- tracks unexpected drift only"
+  },
+  "stl": {
+    "period": 60,
+    "robust": true
   },
   "confidence_tiers": {
     "log": [
