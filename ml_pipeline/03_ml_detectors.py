@@ -1,28 +1,23 @@
 """
 =============================================================================
-STEP 3: TIME SERIES SIGNAL UNDERSTANDING -- Prophet Forecasting
+STEP 3: TIME SERIES SIGNAL UNDERSTANDING -- STL Decomposition
 =============================================================================
-Prophet provides CONTEXTUAL UNDERSTANDING, not anomaly detection:
-  - Learns daily/weekly seasonal patterns
-  - Forecasts expected future behavior
-  - Provides context: "Is this normal for this time of day/week?"
-
-STL decomposition has already been done in Step 2 (02_statistical_detectors.py).
-This step adds Prophet's learned patterns without generating detection flags.
+STL Decomposition provides CONTEXTUAL UNDERSTANDING of the signal:
+  - Decomposes into Trend, Seasonal, and Residual components
+  - Detectors in Step 2 already ran on STL residual
+  - This step enriches the output and finalises the 3-method confidence score
 
 Combined 3-method confidence score is computed from statistical detectors only:
-  MA+SD (0.33) + RoC (0.33) + CUSUM (0.33)
+  MA+SD (0.33) + RoC (0.33) + Adaptive CUSUM (0.33)
 
 Reads:  data/statistical_results.csv
 Writes: data/tsa_results.csv
-        output/plots/06_prophet_forecast.png
-        models/prophet_seasonal.json
 =============================================================================
 """
 
 import pandas as pd
 import numpy as np
-import os, json, warnings
+import os, warnings
 warnings.filterwarnings('ignore')
 
 INPUT_PATH  = "data/statistical_results.csv"
@@ -55,157 +50,37 @@ print(f"  RoC:    {df['roc_flag'].sum()} anomalies")
 print(f"  CUSUM:  {df['cusum_flag'].sum()} anomalies")
 
 # -------------------------------------------------------------
-# PROPHET -- Signal Understanding (NOT Detection)
+# STL CONTEXT -- enrich output (decomposition already done in Step 2)
 # -------------------------------------------------------------
 print("\n" + "=" * 65)
-print("PROPHET FORECASTING -- Signal Understanding")
+print("STL DECOMPOSITION -- Signal Context")
 print("=" * 65)
 print("""
 Purpose:
-  Prophet models daily/weekly usage patterns to provide CONTEXT:
-  - "What level is expected at this time of day?"
-  - "Is this drain rate normal for a Tuesday afternoon?"
-  - Forecast future levels for predictive alerts
+  STL breaks the signal into:
+  - Trend: long-term direction (is the tank filling or draining overall?)
+  - Seasonal: recurring daily/hourly cycle (expected fill/drain pattern)
+  - Residual: noise after removing trend & season — detectors run on THIS
 
-  Prophet does NOT generate anomaly detection flags.
-  Detection is handled by the 3 statistical methods on STL residuals.
+  Detection is performed on the residual, not the raw signal.
+  This eliminates false alarms caused by expected daily drain cycles.
 """)
 
-PROPHET_SUCCESS = False
-try:
-    from prophet import Prophet
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
+if 'stl_trend' in df.columns and 'stl_seasonal' in df.columns:
+    trend_range   = df['stl_trend'].max() - df['stl_trend'].min()
+    season_amp    = df['stl_seasonal'].std()
+    residual_std  = df['stl_residual'].std()
+    print(f"  Trend range  : {trend_range:.2f} mm")
+    print(f"  Seasonal amp : {season_amp:.2f} mm (std)")
+    print(f"  Residual std : {residual_std:.2f} mm (detection target)")
+else:
+    print("  [!] STL columns not in dataset -- skipping context summary")
 
-    # Prepare Prophet input format
-    df_prophet = pd.DataFrame({
-        'ds': df.index,
-        'y':  df['distance_mm'].values
-    })
-
-    # Subsample if too large (Prophet is slow on >10K rows)
-    if len(df_prophet) > 10000:
-        df_prophet_train = df_prophet.iloc[::5].reset_index(drop=True)
-        print(f"  Subsampled for training: {len(df_prophet_train)} rows "
-              f"(from {len(df_prophet)})")
-    else:
-        df_prophet_train = df_prophet.copy()
-
-    # Configure Prophet
-    enable_weekly = total_days >= 3
-    print(f"  daily_seasonality:  True")
-    print(f"  weekly_seasonality: {enable_weekly} (data spans {total_days:.1f} days)")
-    print(f"  changepoint_prior_scale: 0.05 (low = stable baseline)")
-    print(f"  interval_width: 0.95 (95% CI)")
-
-    m = Prophet(
-        daily_seasonality=True,
-        weekly_seasonality=enable_weekly,
-        yearly_seasonality=False,
-        changepoint_prior_scale=0.05,
-        interval_width=0.95
-    )
-    m.fit(df_prophet_train)
-
-    # Predict on all timestamps
-    future = pd.DataFrame({'ds': df.index})
-    forecast = m.predict(future)
-
-    # Store Prophet understanding (NOT as detection flags)
-    df['prophet_yhat']       = forecast['yhat'].values
-    df['prophet_yhat_lower'] = forecast['yhat_lower'].values
-    df['prophet_yhat_upper'] = forecast['yhat_upper'].values
-    df['prophet_deviation']  = (df['distance_mm'] - df['prophet_yhat']).abs()
-
-    # Context: is the current reading unusual for this time of day?
-    ci_width = df['prophet_yhat_upper'] - df['prophet_yhat_lower']
-    df['prophet_surprise'] = (df['prophet_deviation'] / (ci_width + 1e-6)).clip(0, 5)
-
-    # NOT generating prophet_flag -- Prophet provides context, not detection
-    # Legacy compatibility: set prophet_flag to False
-    df['prophet_flag'] = False
-    df['prophet_score'] = df['prophet_surprise']
-
-    prophet_outside_ci = ((df['distance_mm'] < df['prophet_yhat_lower']) |
-                          (df['distance_mm'] > df['prophet_yhat_upper'])).sum()
-
-    print(f"\nProphet Understanding:")
-    print(f"  Mean prediction: {df['prophet_yhat'].mean():.2f} mm")
-    print(f"  CI width (avg):  {ci_width.mean():.2f} mm")
-    print(f"  Readings outside 95% CI: {prophet_outside_ci} (contextual surprise)")
-    print(f"  NOTE: These are NOT counted as anomaly detections.")
-    print(f"        Prophet provides understanding, not flags.")
-
-    # Save Prophet seasonal data
-    try:
-        hours = np.arange(24)
-        hour_effects = []
-        for h in hours:
-            mask = forecast['ds'].dt.hour == h
-            if mask.any():
-                effect = forecast.loc[mask, 'yhat'].mean() - forecast['yhat'].mean()
-                hour_effects.append(float(effect))
-            else:
-                hour_effects.append(0.0)
-
-        prophet_export = {
-            "daily_seasonality": hour_effects,
-            "trend_slope": float(forecast['trend'].diff().mean()),
-            "trend_intercept": float(forecast['trend'].iloc[0]),
-            "ci_width_mean": float(ci_width.mean()),
-            "training_rows": len(df_prophet_train),
-            "weekly_seasonality_enabled": enable_weekly,
-            "note": "Prophet provides signal understanding, not anomaly detection flags"
-        }
-        with open("models/prophet_seasonal.json", "w") as f:
-            json.dump(prophet_export, f, indent=2)
-        print("[OK] Saved: models/prophet_seasonal.json")
-    except Exception:
-        pass
-
-    # Save forecast plot
-    fig, ax = plt.subplots(figsize=(14, 5))
-    ax.fill_between(df.index, df['prophet_yhat_lower'], df['prophet_yhat_upper'],
-                    alpha=0.2, color='#2563eb', label='95% CI')
-    ax.plot(df.index, df['distance_mm'], linewidth=0.5, color='#1a1a2e',
-            alpha=0.7, label='Actual')
-    ax.plot(df.index, df['prophet_yhat'], linewidth=1, color='#2563eb',
-            label='Prophet Forecast')
-    ax.set_xlabel('Time')
-    ax.set_ylabel('Distance (mm)')
-    ax.set_title('Prophet Forecast -- Signal Understanding\n'
-                 '(Models expected behavior at each time of day)')
-    ax.legend(loc='upper right', fontsize=8)
-    plt.tight_layout()
-    plt.savefig('output/plots/06_prophet_forecast.png', dpi=150, bbox_inches='tight')
-    plt.close()
-    print("[OK] Saved: output/plots/06_prophet_forecast.png")
-
-    PROPHET_SUCCESS = True
-
-except ImportError as e:
-    print(f"[!] Prophet skipped (not installed): {e}")
-    print("  Install: pip install prophet")
-    df['prophet_flag']       = False
-    df['prophet_score']      = 0.0
-    df['prophet_yhat']       = df['distance_mm']
-    df['prophet_yhat_lower'] = df['distance_mm']
-    df['prophet_yhat_upper'] = df['distance_mm']
-    df['prophet_surprise']   = 0.0
-
-except Exception as e:
-    print(f"[!] Prophet failed: {e}")
-    df['prophet_flag']       = False
-    df['prophet_score']      = 0.0
-    df['prophet_yhat']       = df['distance_mm']
-    df['prophet_yhat_lower'] = df['distance_mm']
-    df['prophet_yhat_upper'] = df['distance_mm']
-    df['prophet_surprise']   = 0.0
-
-# Also keep stl_flag=False for compatibility (STL is preprocessing, not detection)
-df['stl_flag'] = False
-df['stl_score'] = 0.0
+# Compatibility columns (no Prophet in this project)
+df['prophet_flag']       = False
+df['prophet_score']      = 0.0
+df['stl_flag']           = False
+df['stl_score']          = 0.0
 
 # -------------------------------------------------------------
 # FINAL 3-METHOD CONFIDENCE SCORE
@@ -238,7 +113,7 @@ df['hybrid_flag_final'] = df['n_methods_total'] >= 1
 
 # Results
 print(f"\nDetection method: 3 statistical detectors on STL residual")
-print(f"Signal understanding: STL decomposition + Prophet forecasting")
+print(f"Signal understanding: STL decomposition (Trend + Seasonal + Residual)")
 
 print(f"\nPer-method anomaly counts:")
 print(f"  MA+SD:    {df['masd_flag'].sum()}")

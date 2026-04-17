@@ -13,8 +13,8 @@ graph TD
     
     subgraph "Tier 2: Edge Server (Raspberry Pi)"
         B -->|"HTTP POST /sensor"| C["🌐 Flask Backend"]
-        C --> D["🧠 Full 5-Method Ensemble"]
-        D -->|"STL + Prophet"| D
+        C --> D["🧠 3-Method Ensemble"]
+        D -->|"STL Decomposition"| D
         D --> E[("💽 SQLite Database")]
         D -.->|"Alert / Critical"| F["📩 SMS Notification"]
     end
@@ -49,11 +49,12 @@ graph LR
         Route["POST /sensor"] --> Buffer["Rolling Window Buffer"]
         
         %% Ensemble Engine
-        subgraph Ensemble["5-Method Ensemble Engine"]
+        subgraph Ensemble["3-Method Ensemble Engine"]
             Buffer --> StatEngine["Statistical Evaluator"]
-            Buffer --> TSAEngine["Time-Series Evaluator"]
-            TSAEngine -.-> STL["STL Decomposition"]
-            TSAEngine -.-> PROPHET["Prophet Forecasting"]
+            Buffer --> TSAEngine["STL Decomposition"]
+            TSAEngine -.-> Trend["Trend Component"]
+            TSAEngine -.-> Seasonal["Seasonal Component"]
+            TSAEngine -.-> Residual["Residual (Detection Target)"]
             StatEngine --> Voting["Confidence & Voting Layer"]
             TSAEngine --> Voting
         end
@@ -105,8 +106,8 @@ sequenceDiagram
     loop Every ~20 seconds
         S->>E: Ultrasonic pulse (distance)
         E->>F: POST /sensor {"distance_mm": 42.5}
-        F->>F: Run MA+SD, RoC, CUSUM
-        F->>F: Compute confidence score
+        F->>F: Run MA+SD, RoC, Adaptive CUSUM on STL residual
+        F->>F: Compute 3-method confidence score
         F->>D: INSERT INTO readings
         
         alt Score >= 0.4 (Alert/Critical)
@@ -133,27 +134,26 @@ sequenceDiagram
 
 ## 📊 Detection Methods
 
-| Method | Type | F1 Score | Inference | Edge Deployable |
-|--------|------|----------|-----------|-----------------|
-| MA+SD (Residual) | Statistical | 0.162 | ~15 μs | ESP32 ✅ |
-| Rate of Change (Residual) | Statistical | 0.257 | ~5 μs | ESP32 ✅ |
-| Adaptive CUSUM (Residual) | Statistical | 0.342 | ~10 μs | ESP32 ✅ |
-| **Hybrid (3-method)** | **Ensemble** | **1.000** | **~30 μs** | **ESP32 ✅** |
-| STL Decomposition | TSA | 0.376 | ~100 ms | RPi only |
-| Prophet Forecast | TSA | 0.857 | ~200 ms | RPi only |
+| Method | Type | F1 (Real Data) | F1 (Synthetic) | Inference | Edge Deployable |
+|--------|------|----------------|----------------|-----------|-----------------|
+| MA+SD (Residual) | Statistical | 0.162 | 0.550 | ~15 μs | ESP32 ✅ |
+| Rate of Change (Residual) | Statistical | 0.257 | 0.221 | ~5 μs | ESP32 ✅ |
+| Adaptive CUSUM (Residual) | Statistical | 0.342 | 0.223 | ~10 μs | ESP32 ✅ |
+| **Hybrid (3-method)** | **Ensemble** | **1.000** | **0.416** | **~30 μs** | **ESP32 ✅** |
+| STL Decomposition | TSA (context) | — | — | ~100 ms | RPi (offline) |
 
 ## 🚀 Quick Start
 
 ### 1. Install Dependencies
 ```bash
-pip install pandas numpy scikit-learn matplotlib statsmodels prophet scipy flask
+pip install pandas numpy scikit-learn matplotlib statsmodels scipy flask joblib
 ```
 
 ### 2. Run the Full Pipeline
 ```bash
 python ml_pipeline/run_pipeline.py
 ```
-This executes 7 steps: definitions → preprocessing → statistical detectors → STL+Prophet → evaluation → synthetic data → TinyML export
+This executes 6 steps: definitions → preprocessing → statistical detectors → STL context → evaluation → TinyML export
 
 ### 3. Load Data & Start Dashboard
 ```bash
@@ -215,4 +215,4 @@ Flask runs MA+SD + RoC + CUSUM, stores in SQLite, and triggers alerts if anomaly
 
 ## 🛠 Technologies
 
-Python, Flask, Prophet, statsmodels (STL), scikit-learn, SQLite, Chart.js, TinyML (C), ESP32, HC-SR04
+Python, Flask, statsmodels (STL), scikit-learn, SQLite, Chart.js, TinyML (C), ESP32, HC-SR04

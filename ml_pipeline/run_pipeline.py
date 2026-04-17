@@ -15,7 +15,7 @@ Pipeline:
   Step 0: Anomaly definitions + threshold rationale
   Step 1: Data loading, cleaning, gap filling, feature engineering
   Step 2: Statistical detectors (MA+SD, RoC, Adaptive CUSUM)
-  Step 3: Time Series Analysis (STL Decomposition + Prophet)
+  Step 3: Time Series Understanding (STL Decomposition)
   Step 4: Evaluation (metrics, plots, SOTA comparison)
   Step 5: TinyML export (C headers for ESP32)
 
@@ -31,7 +31,7 @@ STEPS = [
     ("ml_pipeline/00_anomaly_definitions.py",   "Formal anomaly taxonomy, threshold justification"),
     ("ml_pipeline/01_preprocessing.py",         "Data loading, cleaning, gap filling, feature engineering"),
     ("ml_pipeline/02_statistical_detectors.py", "MA+SD, RoC, Adaptive CUSUM, confidence scoring"),
-    ("ml_pipeline/03_ml_detectors.py",          "STL Decomposition + Prophet (Time Series Analysis)"),
+    ("ml_pipeline/03_ml_detectors.py",          "STL Decomposition (Time Series Signal Understanding)"),
     ("ml_pipeline/05_evaluation.py",            "Metrics, plots, SOTA comparison, deployment benchmarks"),
     ("ml_pipeline/08_tinyml_export.py",         "TinyML C headers for ESP32 + deployment analysis"),
 ]
@@ -41,7 +41,7 @@ print("TANK MONITOR -- COMPLETE ANOMALY DETECTION PIPELINE")
 print("=" * 65)
 print("\nDetection methods:")
 print("  Statistical : MA+SD (detrended) | Rate of Change | Adaptive CUSUM")
-print("  TSA         : STL Decomposition | Prophet Forecasting")
+print("  TSA         : STL Decomposition (Trend + Seasonal + Residual)")
 print("  TinyML      : C export for ESP32 edge deployment")
 print("\nInstalling required packages...")
 
@@ -49,10 +49,6 @@ packages = ["pandas", "numpy", "scikit-learn", "matplotlib", "flask",
             "joblib", "statsmodels", "scipy"]
 for pkg in packages:
     subprocess.run([sys.executable, "-m", "pip", "install", pkg, "-q"], check=False)
-
-print("\nOptional packages (install manually if needed):")
-print("  pip install prophet      # for Prophet forecasting")
-print("  pip install flask        # for web dashboard")
 print()
 
 results = {}
@@ -71,7 +67,7 @@ for i, (script, desc) in enumerate(STEPS):
         result = subprocess.run(
             [sys.executable, script],
             capture_output=False,
-            timeout=600   # 10 min timeout for Prophet
+            timeout=300
         )
         elapsed = time.time() - t0
         if result.returncode == 0:
@@ -92,12 +88,10 @@ for script, status in results.items():
 print(f"\nOutputs:")
 print(f"  data/processed.csv             -- cleaned, feature-engineered dataset")
 print(f"  data/statistical_results.csv   -- MA+SD, RoC, CUSUM flags + scores")
-print(f"  data/tsa_results.csv           -- STL + Prophet flags + final 5-method scores")
+print(f"  data/tsa_results.csv           -- STL 3-method confidence scores")
 # data/synthetic_labeled.csv is generated only when 07_datasets_and_synthetic.py is run manually
 print(f"  models/stat_thresholds.json    -- calibrated thresholds")
 print(f"  models/tinyml_detectors.h      -- C code for ESP32 (TinyML)")
-print(f"  models/prophet_seasonal.h      -- Prophet seasonality for ESP32")
-print(f"  models/prophet_seasonal.json   -- Prophet learned patterns")
 print(f"  output/plots/                  -- all figures for the paper")
 print(f"  output/evaluation_report.txt   -- Precision/Recall/F1/MCC table")
 print(f"  output/anomaly_taxonomy.txt    -- Formal anomaly definitions")
